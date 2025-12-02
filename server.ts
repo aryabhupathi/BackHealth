@@ -27,7 +27,7 @@ app.use("/doctor", doctorRoutes);
 app.use("/appointment", appointmentRoutes);
 app.use("/prescription", prescriptionRoutes);
 app.get("/", (req, res) => {
-res.send("Backend is working!");
+res.send("Backend health is working!");
 });
 const PORT = process.env.PORT 
 
