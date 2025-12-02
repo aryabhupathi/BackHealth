@@ -10,14 +10,31 @@ import express from "express";
 dotenv.config();
 const app = express();
 app.use(express.json());
-const allowedOrigin = process.env.FRONTEND_ORIGIN || "https://front-health.vercel.app";
+// const allowedOrigin = process.env.FRONTEND_ORIGIN || "https://front-health.vercel.app";
+// app.use(cors({
+//   origin: allowedOrigin,
+//   methods: "GET,POST,PUT,PATCH,DELETE",
+//   credentials: true,
+// }));
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://front-health.vercel.app",
+];
+
 app.use(
-cors({
-  origin: allowedOrigin,
-  methods: "GET,POST,PUT,PATCH,DELETE",
-  credentials: true,
-})
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: "GET,POST,PUT,PATCH,DELETE",
+    credentials: true,
+  })
 );
+
 mongoose.connect(
     process.env.MONGO_URI || "mongodb://127.0.0.1:27017/healthcare"
 )
