@@ -10,7 +10,7 @@ import express from "express";
 dotenv.config();
 const app = express();
 app.use(express.json());
-const allowedOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:5173";
+const allowedOrigin = process.env.FRONTEND_ORIGIN || "https://backhealth.onrender.com";
 app.use(
 cors({
   origin: allowedOrigin,
