@@ -6,25 +6,23 @@ export interface IWorkingHour {
   isAvailable?: boolean;
 }
 export interface IConsultationFee {
-  inPerson?: number;
-  online?: number;
+  inPerson?: string;
+  online?: string;
   currency?: string;
 }
 export interface IDoctor extends Document {
   fullName: string;
   department: string;
   specialization: string[];
-  experience?: number;
+  experience?: string;
   qualification?: string;
   languagesSpoken?: string[];
-  about?: string;
   contact?: {
     phone?: string;
     email?: string;
   };
   consultationFee?: IConsultationFee;
   workingHours?: IWorkingHour[];
-  licenseNumber?: string;
   accountStatus?: "pending" | "active" | "suspended";
 }
 export interface IDoctor extends Document {
@@ -33,7 +31,6 @@ export interface IDoctor extends Document {
   email: string;
   department: string;
   specialization: string[];
-  licenseNumber?: string;
   contact?: {
     phone?: string;
     email?: string;
@@ -53,8 +50,7 @@ const doctorSchema = new Schema<IDoctor>(
     fullName: { type: String, required: true },
     department: { type: String, required: true },
     specialization: [{ type: String, required: true }],
-    licenseNumber: { type: String, unique: true },
-    experience: { type: Number },
+    experience: { type: String },
     email: { type: String, required: true, unique: true, lowercase: true },
     contact: {
       phone: String,
@@ -69,8 +65,8 @@ const doctorSchema = new Schema<IDoctor>(
       },
     ],
     consultationFee: {
-      inPerson: { type: Number, default: 0 },
-      online: { type: Number, default: 0 },
+      inPerson: { type: String, default: 0 },
+      online: { type: String, default: 0 },
       currency: { type: String, default: "INR" },
     },
     accountStatus: {

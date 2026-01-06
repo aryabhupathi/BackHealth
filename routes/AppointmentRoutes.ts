@@ -1,149 +1,181 @@
 import express, { Request, Response } from "express";
-import Appointment from "../models/Appointment";
-import Doctor from "../models/Doctor";
+import Appointment, { IAppointment } from "../models/Appointment";
+import { sendMail } from "./MailRoutes";
+import {
+  appointmentBookedPatientEmail,
+  appointmentStatusEmail,
+  doctorAppointmentBookedEmail,
+} from "../models/MailModels";
 const router = express.Router();
+type PopulatedPatient = {
+  _id: string;
+  fullName: string;
+  email?: string;
+};
+type PopulatedDoctor = {
+  _id: string;
+  fullName: string;
+  email?: string;
+};
+type AppointmentPopulated = Omit<IAppointment, "patient" | "doctor"> & {
+  patient: PopulatedPatient;
+  doctor: PopulatedDoctor;
+};
 router.post("/", async (req: Request, res: Response) => {
   try {
-    const count = await Appointment.countDocuments();
-    const appointmentId = `A${(count + 1).toString().padStart(3, "0")}`;
-    const { doctor, patient, date, time, reason, appointmentType} = req.body;
+    const { doctor, patient, date, time, reason, appointmentType } = req.body;
     const appointment = await Appointment.create({
-      appointmentId,
       doctor,
       patient,
       date,
       time,
       reason,
-      appointmentType
+      appointmentType,
+      status: "Pending",
     });
+    const populated = (await appointment.populate([
+      { path: "patient", select: "fullName email" },
+      { path: "doctor", select: "fullName email" },
+    ])) as unknown as AppointmentPopulated;
+    if (populated.patient?.email) {
+      sendMail({
+        to: populated.patient.email,
+        subject: "Appointment Confirmed",
+        html: appointmentBookedPatientEmail(
+          populated.patient.fullName,
+          populated.doctor.fullName,
+          date,
+          time,
+          appointmentType
+        ),
+      }).catch(console.error);
+    }
+    if (populated.doctor?.email) {
+      sendMail({
+        to: populated.doctor.email,
+        subject: "New Appointment Booked",
+        html: doctorAppointmentBookedEmail(
+          populated.doctor.fullName,
+          date,
+          time,
+          appointmentType
+        ),
+      }).catch(console.error);
+    }
     res.status(201).json(appointment);
   } catch (err: any) {
     console.error("Error booking appointment:", err);
     res.status(500).json({ error: err.message });
   }
 });
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", async (_req: Request, res: Response) => {
   try {
     const appointments = await Appointment.find()
       .populate("patient", "fullName email contact.phone")
-      .populate("doctor", "fullName email specialization consultationFee");
+      .populate("doctor", "fullName email specialization consultationFee")
+      .sort({ date: 1, time: 1 });
     res.status(200).json(appointments);
   } catch (err) {
-    console.error("Error fetching appointments:", err);
     res.status(500).json({ error: "Failed to fetch appointments" });
   }
 });
 router.get("/patient/:patientId", async (req: Request, res: Response) => {
   try {
-    const { patientId } = req.params;
-    console.log(patientId, "ppppppppppppppppp");
     const appointments = await Appointment.find({
-      patient: patientId,
-    }).populate("doctor", "fullName department specialization consultationFee");
+      patient: req.params.patientId,
+    }).populate("doctor", "fullName specialization consultationFee");
     res.json(appointments);
   } catch (err) {
-    console.error("Error fetching patient appointments:", err);
     res.status(500).json({ error: "Failed to fetch appointments" });
   }
 });
-router.put("/:id", async (req: Request, res: Response) => {
+router.get("/doctor/:doctorId", async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const { status } = req.body;
-    const updated = await Appointment.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    );
-    res.json(updated);
-  } catch (err) {
-    console.error("Error updating appointment:", err);
-    res.status(500).json({ error: "Failed to update appointment" });
-  }
-});
-router.get("/doctor/:doctorId", async (req, res) => {
-  try {
-    const { doctorId } = req.params;
-    const appointments = await Appointment.find({ doctor: doctorId })
-      .populate("patient", "fullName contact phone conditions")
+    const appointments = await Appointment.find({
+      doctor: req.params.doctorId,
+    })
+      .populate("patient", "fullName contact.phone conditions")
       .sort({ date: 1, time: 1 });
     res.json(appointments);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch appointments" });
   }
 });
-router.put("/:id/status", async (req, res) => {
+router.put("/:id/status", async (req: Request, res: Response) => {
   try {
     const { status, notes } = req.body;
-    const updated = await Appointment.findByIdAndUpdate(
+    const updated = (await Appointment.findByIdAndUpdate(
       req.params.id,
       { status, notes },
       { new: true }
-    );
+    ).populate("patient", "fullName email")) as unknown as AppointmentPopulated;
+    if (updated?.patient?.email) {
+      sendMail({
+        to: updated.patient.email,
+        subject: "Appointment Status Updated",
+        html: appointmentStatusEmail(
+          updated.patient.fullName,
+          status,
+          updated.date,
+          updated.time
+        ),
+      }).catch(console.error);
+    }
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch appointments" });
+    res.status(500).json({ error: "Failed to update appointment" });
   }
 });
 router.get("/:doctorId/patients", async (req: Request, res: Response) => {
   try {
-    const { doctorId } = req.params;
-    const appointments = await Appointment.find({ doctor: doctorId })
+    const appointments = await Appointment.find({
+      doctor: req.params.doctorId,
+    })
       .populate("patient")
       .lean();
-    const uniquePatientsMap = new Map();
-    appointments.forEach((appt) => {
-      if (appt.patient && !uniquePatientsMap.has(appt.patient._id.toString())) {
-        uniquePatientsMap.set(appt.patient._id.toString(), appt.patient);
-      }
-    });
-    const patients = Array.from(uniquePatientsMap.values());
-    return res.json({
+    const uniquePatients = Array.from(
+      new Map(
+        appointments
+          .filter((a) => a.patient)
+          .map((a: any) => [a.patient._id.toString(), a.patient])
+      ).values()
+    );
+    res.json({
       success: true,
-      count: patients.length,
-      patients,
+      count: uniquePatients.length,
+      patients: uniquePatients,
     });
   } catch (err) {
-    console.error("Error fetching doctor patients:", err);
     res.status(500).json({
       success: false,
       message: "Failed to load patients for doctor",
     });
   }
 });
-// ✅ Get all doctors consulted by a specific patient
 router.get("/:patientId/doctors", async (req: Request, res: Response) => {
   try {
-    const { patientId } = req.params;
-
-    // Find all appointments for the given patient
-    const appointments = await Appointment.find({ patient: patientId })
-      .populate("doctor") // populate doctor info
+    const appointments = await Appointment.find({
+      patient: req.params.patientId,
+    })
+      .populate("doctor")
       .lean();
-
-    // Extract unique doctors
-    const uniqueDoctorsMap = new Map();
-    appointments.forEach((appt) => {
-      if (appt.doctor && !uniqueDoctorsMap.has(appt.doctor._id.toString())) {
-        uniqueDoctorsMap.set(appt.doctor._id.toString(), appt.doctor);
-      }
-    });
-
-    const doctors = Array.from(uniqueDoctorsMap.values());
-
-    return res.json({
+    const uniqueDoctors = Array.from(
+      new Map(
+        appointments
+          .filter((a) => a.doctor)
+          .map((a: any) => [a.doctor._id.toString(), a.doctor])
+      ).values()
+    );
+    res.json({
       success: true,
-      count: doctors.length,
-      doctors,
+      count: uniqueDoctors.length,
+      doctors: uniqueDoctors,
     });
   } catch (err) {
-    console.error("❌ Error fetching doctors consulted by patient:", err);
     res.status(500).json({
       success: false,
       message: "Failed to load doctors for patient",
     });
   }
 });
-
-
 export default router;

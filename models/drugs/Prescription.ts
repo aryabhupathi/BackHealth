@@ -3,47 +3,51 @@ export interface IPrescription extends Document {
   appointment: mongoose.Types.ObjectId;
   doctor: mongoose.Types.ObjectId;
   patient: mongoose.Types.ObjectId;
+  diagnosis: string;
+  advice?: string;
   medicines: {
     name: string;
     dosage: string;
     frequency: string;
     duration: string;
-    notes?: string;
   }[];
-  diagnosis: string;
-  advice?: string;
-  createdAt: Date;
+  tests: {
+    test: mongoose.Types.ObjectId;
+    instructions?: string;
+    isBooked: boolean;
+  }[];
 }
-const PrescriptionSchema = new Schema<IPrescription>({
-  appointment: {
-    type: Schema.Types.ObjectId,
-    ref: "Appointment",
-    required: true,
-  },
-  doctor: { type: Schema.Types.ObjectId, ref: "Doctor", required: true },
-  patient: { type: Schema.Types.ObjectId, ref: "Patient", required: true },
-  medicines: [
-    {
-      name: String,
-      dosage: String,
-      frequency: String,
-      duration: String,
-      notes: String,
+const PrescriptionSchema = new Schema(
+  {
+    appointment: {
+      type: Schema.Types.ObjectId,
+      ref: "Appointment",
+      required: true,
     },
-  ],
-  diagnosis: { type: String, required: true },
-  advice: { type: String },
-  createdAt: { type: Date, default: Date.now },
-});
+    doctor: { type: Schema.Types.ObjectId, ref: "Doctor", required: true },
+    patient: { type: Schema.Types.ObjectId, ref: "Patient", required: true },
+    diagnosis: { type: String, required: true },
+    advice: String,
+    medicines: [
+      {
+        name: String,
+        dosage: String,
+        frequency: String,
+        duration: String,
+      },
+    ],
+    tests: [
+      {
+        test: { type: Schema.Types.ObjectId, ref: "LabTest" },
+        instructions: String,
+        isBooked: { type: Boolean, default: false },
+      },
+    ],
+  },
+  { timestamps: true }
+);
 export default mongoose.model<IPrescription>(
   "Prescription",
   PrescriptionSchema,
   "prescriptions"
 );
-
-
-
-// poId != corpId ==> all disabled
-// poId != corpId ==> role-guest ==> save,submit disabled
-// poId != corpId ==> role-admin ==> new iteration disabled
-// poId == corpId ==> all enabled

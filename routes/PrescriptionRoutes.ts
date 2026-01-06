@@ -2,6 +2,8 @@ import { Router } from "express";
 import mongoose from "mongoose";
 import Appointment from "../models/Appointment";
 import Prescription from "../models/drugs/Prescription";
+import { prescriptionCreatedEmail } from "../models/MailModels";
+import { sendMail } from "./MailRoutes";
 const router = Router();
 router.post("/", async (req, res) => {
   try {
@@ -10,7 +12,9 @@ router.post("/", async (req, res) => {
     if (!appointment || !doctor || !patient || !diagnosis) {
       return res.status(400).json({ error: "Missing required fields" });
     }
-    const apt = await Appointment.findById(appointment);
+    const apt = await Appointment.findById(appointment)
+      .populate("patient", "fullName email")
+      .populate("doctor", "fullName");
     if (!apt) return res.status(404).json({ error: "Appointment not found" });
     const prescription = new Prescription({
       appointment: new mongoose.Types.ObjectId(appointment),
@@ -23,6 +27,13 @@ router.post("/", async (req, res) => {
     await prescription.save();
     apt.status = "Completed";
     await apt.save();
+    if ((apt as any).patient?.email) {
+      sendMail({
+        to: (apt as any).patient.email,
+        subject: "Your Prescription Is Ready",
+        html: prescriptionCreatedEmail((apt as any).patient.fullName, apt.date),
+      }).catch(console.error);
+    }
     res.status(201).json(prescription);
   } catch (error: any) {
     console.error("Prescription create error:", error);

@@ -1,8 +1,15 @@
 import { Router, Request, Response } from "express";
 import { Types } from "mongoose";
 import User, { IUser, UserRole } from "../models/User";
-import Patient, { IPatient } from "../models/Patient";
-import Doctor, { IDoctor } from "../models/Doctor";
+import Patient from "../models/Patient";
+import { sendMail } from "./MailRoutes";
+import { loginAlertEmail, registerSuccessEmail } from "../models/MailModels";
+const generatePatientId = async () => {
+  const count = await Patient.countDocuments();
+  return `PAT-${new Date().getFullYear()}-${(count + 1)
+    .toString()
+    .padStart(5, "0")}`;
+};
 const router = Router();
 const validateInput = (name: string, email: string, password: string) => {
   const errors: string[] = [];
@@ -16,79 +23,71 @@ const validateInput = (name: string, email: string, password: string) => {
 };
 router.post("/register", async (req: Request, res: Response) => {
   try {
-    const { name, email, password, role = UserRole.Patient, phone } = req.body;
+    const { name, email, password, phone } = req.body;
     const validationErrors = validateInput(name, email, password);
     if (validationErrors.length > 0) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Validation failed",
-          errors: validationErrors,
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: validationErrors,
+      });
     }
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number is required",
+      });
+    }
+    const existingUser = await User.findOne({
+      email: email.toLowerCase(),
+    });
     if (existingUser) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "User already exists with this email",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "User already exists with this email",
+      });
     }
     const user: IUser = await User.create({
       name: name.trim(),
       email: email.toLowerCase(),
       password,
-      role,
+      role: UserRole.Patient,
       verified: false,
     });
-    let linkedProfile: IPatient | IDoctor | null = null;
-    if (role === UserRole.Doctor) {
-      linkedProfile = await Doctor.create({
-        fullName: name,
-        userId: user._id,
-      });
-    } else if (role === UserRole.Patient) {
-      linkedProfile = await Patient.findOne({
-        $or: [{ "contact.phone": phone }],
-      });
-      if (!linkedProfile) {
-        linkedProfile = await Patient.create({
-          fullName: name,
-          contact: { phone },
-          userId: user._id,
-        });
-      }
-    }
-    if (linkedProfile) {
-      user.linkedProfile = linkedProfile._id as Types.ObjectId;
-      await user.save();
-    }
+    const patientId = await generatePatientId();
+    const patientProfile = await Patient.create({
+      fullName: name,
+      patientId,
+      contact: { phone },
+      userId: user._id,
+    });
+    user.linkedProfile = patientProfile._id as Types.ObjectId;
+    await user.save();
+    sendMail({
+      to: user.email,
+      subject: "Welcome to CareTrack",
+      html: registerSuccessEmail(user.name),
+    }).catch(console.error);
     res.status(201).json({
       success: true,
-      message: `User registered successfully${
-        linkedProfile ? " and linked to profile" : ""
-      }`,
+      message: "Patient registered successfully",
       data: {
         user: {
           id: user._id,
           name: user.name,
           email: user.email,
           role: user.role,
-          linkedProfile: linkedProfile || null,
+          linkedProfile: patientProfile,
         },
       },
     });
   } catch (err: any) {
     console.error("Registration error:", err);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error during registration",
-        error: err.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error during registration",
+      error: err.message,
+    });
   }
 });
 router.post("/login", async (req: Request, res: Response) => {
@@ -110,6 +109,11 @@ router.post("/login", async (req: Request, res: Response) => {
     if (user.role === UserRole.Patient || user.role === UserRole.Doctor) {
       await user.populate("linkedProfile");
     }
+    sendMail({
+      to: user.email,
+      subject: "New Login to CareTrack",
+      html: loginAlertEmail(user.name),
+    }).catch(console.error);
     res.json({
       success: true,
       message: "Login successful",
@@ -125,13 +129,11 @@ router.post("/login", async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     console.error("Login error:", err);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error during login",
-        error: err.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error during login",
+      error: err.message,
+    });
   }
 });
 router.get("/users", async (req: Request, res: Response) => {
@@ -147,13 +149,11 @@ router.get("/users", async (req: Request, res: Response) => {
     res.json({ success: true, count: users.length, data: users });
   } catch (err: any) {
     console.error("Error fetching users:", err);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Server error while fetching users",
-        error: err.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching users",
+      error: err.message,
+    });
   }
 });
 export default router;

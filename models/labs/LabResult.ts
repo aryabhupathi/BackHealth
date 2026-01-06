@@ -1,42 +1,37 @@
-
 import mongoose, { Schema, Document } from "mongoose";
-
 export interface ILabResult extends Document {
-  orderId: mongoose.Types.ObjectId;
-  testId: mongoose.Types.ObjectId;
-  patientId: mongoose.Types.ObjectId;
-  resultValue: string;
-  referenceRange?: string;
-  status: "Normal" | "Abnormal" | "Critical" | "Pending";
+  order: mongoose.Types.ObjectId;
+  test: mongoose.Types.ObjectId;
+  patient: mongoose.Types.ObjectId;
+  result: string;
+  status: "Normal" | "Abnormal" | "Critical";
   remarks?: string;
-  verifiedBy?: mongoose.Types.ObjectId;
   reportUrl?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  verifiedBy?: mongoose.Types.ObjectId;
 }
-
-const LabResultSchema: Schema = new Schema(
+const LabResultSchema = new Schema(
   {
-    orderId: { type: Schema.Types.ObjectId, ref: "LabOrder", required: true },
-    testId: { type: Schema.Types.ObjectId, ref: "TestCatalog", required: true },
-    patientId: { type: Schema.Types.ObjectId, ref: "Patient", required: true },
-    resultValue: { type: String, required: true },
-    referenceRange: { type: String },
+    order: {
+      type: Schema.Types.ObjectId,
+      ref: "LabOrder",
+      required: true,
+    },
+    test: { type: Schema.Types.ObjectId, ref: "LabTest", required: true },
+    patient: { type: Schema.Types.ObjectId, ref: "Patient", required: true },
+    result: { type: String, required: true },
     status: {
       type: String,
-      enum: ["Normal", "Abnormal", "Critical", "Pending"],
-      default: "Pending",
+      enum: ["Normal", "Abnormal", "Critical"],
+      required: true,
     },
-    remarks: { type: String },
+    remarks: String,
+    reportUrl: String,
     verifiedBy: { type: Schema.Types.ObjectId, ref: "User" },
-    reportUrl: { type: String },
   },
   { timestamps: true }
 );
-
-export const LabResult = mongoose.model<ILabResult>("LabResult", LabResultSchema, "LabResult");
 export default mongoose.model<ILabResult>(
   "LabResult",
   LabResultSchema,
-  "labresults"
+  "labResults"
 );
