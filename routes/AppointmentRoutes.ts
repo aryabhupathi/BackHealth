@@ -24,6 +24,12 @@ type AppointmentPopulated = Omit<IAppointment, "patient" | "doctor"> & {
 router.post("/", async (req: Request, res: Response) => {
   try {
     const { doctor, patient, date, time, reason, appointmentType } = req.body;
+     if (!doctor || !patient) {
+      return res.status(400).json({
+        success: false,
+        message: "Doctor and patient are required",
+      });
+    }
     const appointment = await Appointment.create({
       doctor,
       patient,

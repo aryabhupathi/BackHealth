@@ -156,4 +156,67 @@ router.get("/users", async (req: Request, res: Response) => {
     });
   }
 });
+router.post("/forgot-password", async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  const user = await User.findOne({ email: email.toLowerCase() });
+
+  if (!user) {
+    return res.json({ message: "If email exists, reset link sent" });
+  }
+
+  const resetToken = Math.random().toString(36).substring(2);
+
+  user.resetToken = resetToken;
+  user.resetTokenExpire = new Date(Date.now() + 15 * 60 * 1000);
+
+  await user.save();
+
+  const resetLink = `http://localhost:5173/reset-password/${resetToken}`;
+
+  await sendMail({
+    to: user.email,
+    subject: "Reset Your Password",
+    html: `
+      <p>Hello ${user.name},</p>
+      <p>You requested to reset your password.</p>
+      <p>
+        <a href="${resetLink}" target="_blank">
+          Click here to reset your password
+        </a>
+      </p>
+      <p>This link will expire in 15 minutes.</p>
+    `,
+  });
+
+  res.json({ message: "Reset link sent" });
+});
+
+
+router.post("/reset-password/:token", async (req: Request, res: Response) => {
+  const { password } = req.body;
+
+  if (!password || password.length < 6) {
+    return res.status(400).json({ message: "Password too short" });
+  }
+
+  const user = await User.findOne({
+    resetToken: req.params.token,
+    resetTokenExpire: { $gt: new Date() },
+  });
+
+  if (!user) {
+    return res.status(400).json({ message: "Invalid or expired token" });
+  }
+
+  user.password = password; // ⚠️ plain text
+  user.resetToken = undefined;
+  user.resetTokenExpire = undefined;
+
+  await user.save();
+
+  res.json({ message: "Password reset successful" });
+});
+
+
 export default router;

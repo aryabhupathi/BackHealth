@@ -4,6 +4,18 @@ export enum UserRole {
   Doctor = "Doctor",
   Patient = "Patient",
 }
+// export interface IUser extends Document {
+//   name: string;
+//   email: string;
+//   password: string;
+//   role: UserRole;
+//   verified: boolean;
+//   linkedProfile?: Types.ObjectId;
+//   createdAt: Date;
+//   updatedAt: Date;
+//   resetToken:String;
+//   resetTokenExpire: Date,
+// }
 export interface IUser extends Document {
   name: string;
   email: string;
@@ -13,7 +25,10 @@ export interface IUser extends Document {
   linkedProfile?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
+  resetToken?: string;
+  resetTokenExpire?: Date;
 }
+
 const UserSchema = new Schema<IUser>(
   {
     name: { type: String, required: true },
@@ -29,6 +44,9 @@ const UserSchema = new Schema<IUser>(
       type: Schema.Types.ObjectId,
       refPath: "role",
     },
+    resetToken: { type: String },
+resetTokenExpire: { type: Date },
+
   },
   { timestamps: true }
 );

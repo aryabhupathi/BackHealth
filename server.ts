@@ -1,5 +1,8 @@
-import cors from "cors";
+
 import dotenv from "dotenv";
+
+dotenv.config();
+import cors from "cors";
 import mongoose from "mongoose";
 import loginRoutes from "./routes/LoginRoutes";
 import patientRoutes from "./routes/PatientRoutes";
@@ -8,7 +11,6 @@ import appointmentRoutes from "./routes/AppointmentRoutes";
 import prescriptionRoutes from "./routes/PrescriptionRoutes";
 import testRoutes from "./routes/LabRoutes"
 import express from "express";
-dotenv.config();
 const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
