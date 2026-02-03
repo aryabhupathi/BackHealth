@@ -4,10 +4,10 @@ export interface IAppointment extends Document {
   appointmentId: string;
   doctor: mongoose.Types.ObjectId;
   patient: mongoose.Types.ObjectId;
-  date: string;
+  date: Date;
   time: string;
   reason?: string;
-  status: "Pending" | "Completed" | "Cancelled";
+  status: "Pending" | "Completed" | "Cancelled" | "Approved";
   appointmentType: "Online" | "In-person";
 }
 const AppointmentSchema = new Schema(
@@ -15,14 +15,15 @@ const AppointmentSchema = new Schema(
     appointmentId: { type: String, unique: true },
     doctor: { type: Schema.Types.ObjectId, ref: "Doctor", required: true },
     patient: { type: Schema.Types.ObjectId, ref: "Patient", required: true },
-    date: { type: String, required: true },
+    date: { type: Date, required: true },
     time: { type: String, required: true },
     reason: String,
     status: {
-      type: String,
-      enum: ["Pending", "Completed", "Cancelled"],
-      default: "Pending",
-    },
+  type: String,
+  enum: ["Pending", "Approved", "Completed", "Cancelled"],
+  default: "Pending",
+},
+
     appointmentType: {
       type: String,
       enum: ["Online", "In-person"],

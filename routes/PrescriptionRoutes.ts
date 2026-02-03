@@ -5,37 +5,86 @@ import Prescription from "../models/drugs/Prescription";
 import { prescriptionCreatedEmail } from "../models/MailModels";
 import { sendMail } from "./MailRoutes";
 const router = Router();
+// router.post("/", async (req, res) => {
+//   try {
+//     const { appointment, doctor, patient, medicines, diagnosis, advice } =
+//       req.body;
+//     if (!appointment || !doctor || !patient || !diagnosis) {
+//       return res.status(400).json({ error: "Missing required fields" });
+//     }
+//     const apt = await Appointment.findById(appointment)
+//       .populate("patient", "fullName email")
+//       .populate("doctor", "fullName");
+//     if (!apt) return res.status(404).json({ error: "Appointment not found" });
+//     const prescription = new Prescription({
+//       appointment: new mongoose.Types.ObjectId(appointment),
+//       doctor: new mongoose.Types.ObjectId(doctor),
+//       patient: new mongoose.Types.ObjectId(patient),
+//       medicines: medicines || [],
+//       diagnosis,
+//       advice: advice || "",
+//     });
+//     await prescription.save();
+//     apt.status = "Completed";
+//     await apt.save();
+//     if ((apt as any).patient?.email) {
+//       sendMail({
+//         to: (apt as any).patient.email,
+//         subject: "Your Prescription Is Ready",
+//         html: prescriptionCreatedEmail((apt as any).patient.fullName, apt.date),
+//       }).catch(console.error);
+//     }
+//     res.status(201).json(prescription);
+//   } catch (error: any) {
+//     console.error("Prescription create error:", error);
+//     res.status(500).json({ error: "Failed to create prescription" });
+//   }
+// });
+
 router.post("/", async (req, res) => {
   try {
     const { appointment, doctor, patient, medicines, diagnosis, advice } =
       req.body;
+
     if (!appointment || !doctor || !patient || !diagnosis) {
       return res.status(400).json({ error: "Missing required fields" });
     }
+
     const apt = await Appointment.findById(appointment)
       .populate("patient", "fullName email")
       .populate("doctor", "fullName");
-    if (!apt) return res.status(404).json({ error: "Appointment not found" });
+
+    if (!apt) {
+      return res.status(404).json({ error: "Appointment not found" });
+    }
+
     const prescription = new Prescription({
-      appointment: new mongoose.Types.ObjectId(appointment),
-      doctor: new mongoose.Types.ObjectId(doctor),
-      patient: new mongoose.Types.ObjectId(patient),
+      appointment: apt._id,
+      doctor,
+      patient,
       medicines: medicines || [],
       diagnosis,
       advice: advice || "",
     });
+
     await prescription.save();
+
     apt.status = "Completed";
     await apt.save();
+
     if ((apt as any).patient?.email) {
       sendMail({
         to: (apt as any).patient.email,
         subject: "Your Prescription Is Ready",
-        html: prescriptionCreatedEmail((apt as any).patient.fullName, apt.date),
+        html: prescriptionCreatedEmail(
+          (apt as any).patient.fullName,
+          apt.date.toISOString().slice(0, 10) // ✅ FIX
+        ),
       }).catch(console.error);
     }
+
     res.status(201).json(prescription);
-  } catch (error: any) {
+  } catch (error) {
     console.error("Prescription create error:", error);
     res.status(500).json({ error: "Failed to create prescription" });
   }
@@ -96,7 +145,7 @@ router.patch("/:id", async (req, res) => {
     const prescription = await Prescription.findByIdAndUpdate(
       id,
       { $set: req.body },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
     if (!prescription) {
       return res.status(404).json({ error: "Prescription not found" });
@@ -140,4 +189,43 @@ router.get("/", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch prescriptions" });
   }
 });
+// router.get("/:id/download", async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     if (!mongoose.Types.ObjectId.isValid(id)) {
+//       return res.status(400).json({ message: "Invalid prescription ID" });
+//     }
+
+//     const prescription = await Prescription.findById(id)
+//       .populate("doctor", "name license")
+//       .populate("patient", "name age gender")
+//       .populate("tests.test", "name");
+
+//     if (!prescription) {
+//       return res.status(404).json({ message: "Prescription not found" });
+//     }
+
+//     // 🔐 Authorization check (example)
+//     // if (req.user.id !== prescription.patient.toString()) { ... }
+
+//     const doc = new PDFDocument({ size: "A4", margin: 50 });
+
+//     res.setHeader("Content-Type", "application/pdf");
+//     res.setHeader(
+//       "Content-Disposition",
+//       `attachment; filename=prescription_${prescription._id}.pdf`,
+//     );
+
+//     doc.pipe(res);
+
+//     generatePrescriptionPDF(doc, prescription);
+
+//     doc.end();
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: "Failed to generate prescription PDF" });
+//   }
+// });
+
 export default router;

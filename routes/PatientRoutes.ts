@@ -4,16 +4,54 @@ import Patient from "../models/Patient";
 import User, { IUser, UserRole } from "../models/User";
 import { sendMail } from "./MailRoutes";
 import { patientLoginCreatedEmail } from "../models/MailModels";
+import Appointment from "../models/Appointment";
 const router = express.Router();
-router.get("/", async (_req: Request, res: Response) => {
-  try {
-    const patients = await Patient.find().sort({ createdAt: -1 });
-    res.json({ success: true, count: patients.length, data: patients });
-  } catch (err: any) {
-    console.error("GET /patients error:", err);
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
+
+  router.get("/:id/history", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid patient id" });
+      }
+      const patient = await Patient.findById(id).lean();
+      // console.log(patient, "ppppppppppp");
+      if (!patient) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Patient not found" });
+      }
+      const appointments = await Appointment.find({ patient: id })
+        .populate({
+          path: "doctor",
+          select: "fullName department specialization",
+        })
+        .sort({ createdAt: -1 })
+        .lean();
+      // console.log(appointments, "aaaaaaaaaaaaaaa");
+      res.json({
+        success: true,
+        data: {
+          patientProfile: {
+            patientId: patient.patientId,
+            fullName: patient.fullName,
+            gender: patient?.gender,
+            dob: patient?.dob,
+            bloodGroup: patient.bloodGroup,
+          },
+          medicalData: {
+            allergies: patient.allergies,
+            conditions: patient.conditions,
+            medications: patient.medications,
+          },
+          appointmentHistory: appointments,
+        },
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  });
 router.get("/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
