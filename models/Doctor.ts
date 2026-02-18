@@ -105,6 +105,7 @@ export interface IDoctor extends Document {
   fullName: string;
   email: string;
   department: string;
+  gender?: string;
   specialization: string[];
   experience?: string;
   qualification?: string;
@@ -139,7 +140,7 @@ const doctorSchema = new Schema<IDoctor>(
       unique: true,
       lowercase: true,
     },
-
+gender: { type: String, enum: ["Male", "Female", "Other"] },
     department: { type: String, required: true },
 
     specialization: {

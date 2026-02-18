@@ -42,11 +42,12 @@ router.patch("/:id/toggle", async (req, res) => {
   const test = await LabTest.findById(req.params.id);
   if (!test) return res.sendStatus(404);
 
-  test.isActive = !test.isActive;
+  test.isActive = req.body.isActive;
   await test.save();
 
   res.json(test);
 });
+
 router.put("/:id", async (req, res) => {
   const test = await LabTest.findByIdAndUpdate(
     req.params.id,

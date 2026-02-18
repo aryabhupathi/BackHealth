@@ -10,6 +10,7 @@ import doctorRoutes from "./routes/DoctorRoutes";
 import appointmentRoutes from "./routes/AppointmentRoutes";
 import prescriptionRoutes from "./routes/PrescriptionRoutes";
 import testRoutes from "./routes/LabRoutes"
+import paymentRoutes from "./routes/Payments";
 import express from "express";
 const app = express();
 const allowedOrigins = [
@@ -39,6 +40,7 @@ app.use("/doctor", doctorRoutes);
 app.use("/appointment", appointmentRoutes);
 app.use("/prescription", prescriptionRoutes);
 app.use("/labtests", testRoutes);
+app.use("/payment", paymentRoutes);
 app.get("/", (req, res) => {
   res.send("Backend health is working!");
 });

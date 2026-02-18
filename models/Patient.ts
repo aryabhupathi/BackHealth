@@ -88,20 +88,22 @@ const PatientSchema = new Schema<IPatient>(
     email: { type: String, lowercase: true },
 
     gender: String,
-    dob: Date,                 // ✅ FIXED
+    dob: Date, // ✅ FIXED
     bloodGroup: String,
 
-    allergies: [
-      {
-        name: { type: String, required: true },
-        severity: {
-          type: String,
-          enum: ["Mild", "Moderate", "Severe"],
-          required: true,
-        },
-        reaction: String,
-      },
-    ],
+    // allergies: [
+    //   {
+    //     name: { type: String, required: true },
+    //     severity: {
+    //       type: String,
+    //       enum: ["Mild", "Moderate", "Severe"],
+    //       required: true,
+    //     },
+    //     reaction: String,
+    //   },
+    // ],
+
+    allergies: { type: [String], default: [] },
 
     conditions: { type: [String], default: [] },
     medications: { type: [String], default: [] },
@@ -116,7 +118,7 @@ const PatientSchema = new Schema<IPatient>(
       policyNumber: String,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.model<IPatient>("Patient", PatientSchema, "patients");

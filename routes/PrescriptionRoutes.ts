@@ -78,7 +78,7 @@ router.post("/", async (req, res) => {
         subject: "Your Prescription Is Ready",
         html: prescriptionCreatedEmail(
           (apt as any).patient.fullName,
-          apt.date.toISOString().slice(0, 10) // ✅ FIX
+          apt.date.toISOString().slice(0, 10), // ✅ FIX
         ),
       }).catch(console.error);
     }
@@ -97,6 +97,7 @@ router.get("/patient/:patientId", async (req, res) => {
     }
     const prescriptions = await Prescription.find({ patient: patientId })
       .populate("doctor", "fullName specialization")
+      .populate("patient", "fullName gender")
       .populate("appointment", "date time reason")
       .sort({ createdAt: -1 });
     res.json(prescriptions);
